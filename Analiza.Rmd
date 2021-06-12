@@ -1,0 +1,94 @@
+---
+title: "Analiza szeregów czasowych"
+author: "Krawiec Piotr"
+date: "12/06/2021"
+output: 
+  pdf_document:
+    number_sections: true
+    toc: true
+    toc_depth: 3
+    keep_tex: yes
+  includes:
+    in_header: latex/header.tex
+    before_body: latex/before_body.tex
+    after_body: latex/after_body.tex
+csl: cit.csl
+lang: pl
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(knitr)
+hook_output <- knit_hooks$get("output")
+knit_hooks$set(output = function(x, options) {
+  lines <- options$output.lines
+  if (is.null(lines)) {
+    return(hook_output(x, options))  # pass to default hook
+  }
+  x <- unlist(strsplit(x, "\n"))
+  more <- "..."
+  if (length(lines)==1) {        # first n lines
+    if (length(x) > lines) {
+      # truncate the output, but add ....
+      x <- c(head(x, lines), more)
+    }
+  } else {
+    x <- c(more, x[lines], more)
+  }
+  # paste these lines together
+  x <- paste(c(x, ""), collapse = "\n")
+  hook_output(x, options)
+})
+knitr::opts_chunk$set(echo = TRUE)
+Sys.setlocale("LC_ALL", "Polish")
+```
+
+# Abstrakt
+
+# Szereg - Rozwój biznesu
+
+Na szereg ten składają się dane po chodzące ze strony [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States"). Dane zbierane są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie identyfikatora EAN (Employer Identyfication Number). Każdy pracodawna, koropracja, organizacja non-profit itp muszą posiadać takie numery, aby móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile nowych biznesów powstaje.
+
+## Wczytanie danych
+
+W tym etapie wczytałem dane oraz uzupełniłem brakujące wartości średnimi.
+
+```{r, echo=FALSE}
+d <- read.csv2("Datasets/BUSAPPWNSAUS.csv", sep = ",")
+d$DATE <- as.Date(d$DATE)
+d$BUSAPPWNSAUS <- as.numeric(d$BUSAPPWNSAUS)
+d <- d[which(d$DATE > as.Date("2019-09-01")),]
+d$BUSAPPWNSAUS <- sapply(
+  d$BUSAPPWNSAUS, 
+  function(x) ifelse(is.na(x), round(mean(d$BUSAPPWNSAUS, na.rm = TRUE),2), x))
+```
+
+Tak prezentują się załadowane dane:
+
+```{r}
+head(d)
+```
+
+```{r}
+library("ggplot2")
+ggplot(d, aes(DATE, BUSAPPWNSAUS)) +
+  geom_line() +
+  labs(x="Dzień", y="Ilość wniosków EIN", title = "Ilość wniosków EIN w latach 2020-2021") +
+  theme_bw()
+
+```
+
+```{r}
+library("forecast")
+t <- ts(d$, freq = 365.25/7, start =  2019 + 250/365.25)
+seasonplot(t)
+```
+
+```{r}
+Acf(t)
+```
+
+```{r}
+Pacf(t)
+```
+
+# Szereg - Index cen nieruchomości
