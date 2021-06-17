@@ -39,6 +39,7 @@ knit_hooks$set(output = function(x, options) {
   hook_output(x, options)
 })
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(eval = FALSE)
 Sys.setlocale("LC_ALL", "Polish")
 ```
 
@@ -148,10 +149,6 @@ tsdisplay(t.bc.52)
 Po usunięciu sezonowości i zastosowaniu transformacji Boxa-Coxa, nadal pozostał silny trend - wykres funkcji ACF jest dodatni i stopniowo maleje.
 
 ```{r}
-tsdisplay(t.bc.52)
-```
-
-```{r}
 t.bc.52.1 <- diff(t.bc.52, lag = 1)
 tsdisplay(t.bc.52.1)
 ```
@@ -177,10 +174,10 @@ Do wyboru mam rzędy MA równe:
 
 ```{r}
 t.bc.52.1.acf <- Acf(t.bc.52.1, plot = FALSE, lag.max = 210)
-which(abs(t.bc.52.1.acf$acf)>1.96/sqrt(t.bc.52.1.acf$n.used)) # Wszystkie lag spoza przedziałem
+t.bc.52.1.acf$lag[which(abs(t.bc.52.1.acf$acf)>1.96/sqrt(t.bc.52.1.acf$n.used))] # Wszystkie lag poza przedziałem
 ```
 
-Obliczam współczynniki MA(52) i MA(1):
+Obliczam współczynniki MA(52) i MA(26):
 
 ```{r}
 st <- t.bc.52.1 # szereg stacjonarny
@@ -208,12 +205,12 @@ Do wyboru mam rzędy AR równe:
 
 ```{r}
 t.bc.52.1.pacf <- Pacf(t.bc.52.1, plot = FALSE, lag.max = 210)
-which(abs(t.bc.52.1.pacf$acf)>1.96/sqrt(t.bc.52.1.pacf$n.used)) # Wszystkie lag spoza przedziałem
+t.bc.52.1.pacf$lag[which(abs(t.bc.52.1.pacf$acf)>1.96/sqrt(t.bc.52.1.pacf$n.used))] # Wszystkie lag spoza przedziałem
 ```
 
 ### AR(52) i AR(56)
 
-Obliczam współczynniki AR(52), AR(56), AR(1):
+Obliczam współczynniki AR(52), AR(56):
 
 ```{r}
 st.ar56.yw <-ar(st, order.max = 56, aic = FALSE, method = "yule-walker")
@@ -242,7 +239,7 @@ Współczynniki dla AR(56) i AR(52) są podobne.
 ### auto.arima
 
 ```{r}
-au <- auto.arima(t, lambda = 0)
+au <- auto.arima(st)
 ```
 
 ```{r}
@@ -253,16 +250,43 @@ summary(au)
 
 Wszystkie modele korzystały z transformacji Boxa-Coxa więc mogę je porównywać między sobą.
 
-    # ARIMA(0,0,26)           AIC=-379.66   AICc=-377.41   BIC=-250.22
+    # ARIMA(0,0,26)             AIC=-379.66   AICc=-377.41   BIC=-250.22
     # ARIMA(0,0,52)             AIC=-475.62   AICc=-467.09   BIC=-225.99
     # ARIMA(56,0,0)             AIC=-540.75 + AICc=-530.87 + BIC=-272.63
     # ARIMA(1,0,0)              AIC=-181.41   AICc=-181.38   BIC=-167.54
-    # ARIMA(1,1,0)(1,1,0)[52] AIC=-343.57   AICc=-343.54   BIC=-329.7  +
+    # ARIMA(1,0,0)(1,0,0)[52]   AIC=-343.58   AICc=-343.54   BIC=-329.71  +
 
-Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0). Pomimo dużej ilości, parametrów jako jedyny y przechodzi test Ljung-Boxa. Analiza reszt znajduje się na wykresach poniżej.
+Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0). Pomimo dużej ilości, parametrów jako jedyny przechodzi test Ljung-Boxa (dla $\alpha = 0.05$). Analiza reszt znajduje się na wykresach poniżej.
 
 ```{r}
 checkresiduals(st.ar56)
 ```
+
+## Prognozowanie
+
+### Prognozowanie naiwne metodą średniej
+
+```{r}
+t.meanf <- meanf(t, h = 60)
+plot(t.meanf)
+```
+
+Prognozowanie naiwne metodą średniej nie daje dobrych rezultatów, może być to spowodowane tym iż szereg ten zawiera trend i sezonowość. Prognoza dla szeregu bez trendu i sezonowości:
+
+```{r}
+st.meanf <- meanf(st, h = 60)
+plot(st.meanf)
+```
+
+Prognoza ta jest dużo lepsza. Dodając trend i sezonowość moglibyśmy uzyskać nią lepsze przewidywania, niż za pierwszym razem.
+
+### Prognozowanie naiwne sezonowe
+
+```{r}
+t.snaive <- snaive(t, h = 60)
+plot(t.snaive)
+```
+
+Prognoza naiwna sezonowa daje na pierwszy rzut oka najlepsze rezultaty. Uwzględnia ona silną sezonowość szeregu oraz to że w poprzednich latach składowa trendu była dużo większa, jednak nie uwzględnia ona przyszłego wzrostu trendu.
 
 # - Index cen nieruchomości
