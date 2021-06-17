@@ -39,7 +39,7 @@ knit_hooks$set(output = function(x, options) {
   hook_output(x, options)
 })
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(eval = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
 Sys.setlocale("LC_ALL", "Polish")
 ```
 
@@ -59,7 +59,7 @@ d$BUSAPPWNSAUS <- as.numeric(d$BUSAPPWNSAUS)
 d$BUSAPPWNSAUS <- sapply(
   d$BUSAPPWNSAUS, 
   function(x) ifelse(is.na(x), round(mean(d$BUSAPPWNSAUS, na.rm = TRUE),2), x))
-d
+head(d)
 ```
 
 ## Główne cechy analizowanych danych
