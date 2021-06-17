@@ -42,11 +42,11 @@ knitr::opts_chunk$set(echo = TRUE)
 Sys.setlocale("LC_ALL", "Polish")
 ```
 
-# Abstrakt
-
 # Szereg - Rozwój biznesu
 
-Na szereg ten składają się dane po chodzące ze strony [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States"). Dane zbierane są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie identyfikatora EAN (Employer Identyfication Number). Każdy pracodawna, koropracja, organizacja non-profit itp muszą posiadać takie numery, aby móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile nowych biznesów powstaje.
+Na szereg ten składają się dane po chodzące ze strony [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States").Dane zbierane są przez U.S Census Bureau, obejmują lata 2006-2021. Zbierane są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie identyfikatora EAN (Employer Identyfication Number). Każdy pracodawna, koropracja, organizacja non-profit itp muszą posiadać takie numery, aby móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile nowych biznesów powstaje.
+
+Do korzyści jakie przyniesie prognoza należy przewidywanie rozwoju gospodarki, gdyż nowo powstające biznesy mogą świadczyć o tym że w kraju panują korzystne warunki do rozwoju biznesu. Analiza szeregu pozwoli też przewidzieć jak ludzie postrzegają obecny stan gospodarki - czy są w stanie zaryzykować inwestując we własny biznes.
 
 ## Wczytanie danych
 
@@ -54,41 +54,137 @@ W tym etapie wczytałem dane oraz uzupełniłem brakujące wartości średnimi.
 
 ```{r, echo=FALSE}
 d <- read.csv2("Datasets/BUSAPPWNSAUS.csv", sep = ",")
-d$DATE <- as.Date(d$DATE)
 d$BUSAPPWNSAUS <- as.numeric(d$BUSAPPWNSAUS)
-d <- d[which(d$DATE > as.Date("2019-09-01")),]
 d$BUSAPPWNSAUS <- sapply(
   d$BUSAPPWNSAUS, 
   function(x) ifelse(is.na(x), round(mean(d$BUSAPPWNSAUS, na.rm = TRUE),2), x))
+d
 ```
 
-Tak prezentują się załadowane dane:
+## Główne cechy analizowanych danych
 
-```{r}
-head(d)
-```
-
-```{r}
-library("ggplot2")
-ggplot(d, aes(DATE, BUSAPPWNSAUS)) +
-  geom_line() +
-  labs(x="Dzień", y="Ilość wniosków EIN", title = "Ilość wniosków EIN w latach 2020-2021") +
-  theme_bw()
-
-```
+Tak prezentuje się wykres ilości wniosków w czasie:
 
 ```{r}
 library("forecast")
-t <- ts(d$, freq = 365.25/7, start =  2019 + 250/365.25)
+t <- ts(d$BUSAPPWNSAUS, freq = 365.25/7, start =  2006 + 7/365.25)
+plot(t)
+```
+
+Z wykresu wywnioskować możemy że szereg ten posiada dużą sezonowość, pojawia się tu charakterystyczny wzorzec (odstające szpilki). Widać także niewielki dodatni trend, który gwałtownie rośnie na początku roku 2020.
+
+```{r}
 seasonplot(t)
 ```
+
+Porównując kolejne roczne sezony między sobą, sezonowość widać jeszcze dokładniej. Pojawia się też rok 2020, który znacznie odstaje wartościami, lecz kształtem nadal przypomina poprzednie sezony.
 
 ```{r}
 Acf(t)
 ```
 
+Powolny spadek dodatnich wartości funkcji Acf wskazuje dodatni trend w szeregu.
+
 ```{r}
-Pacf(t)
+Pacf(t, lag.max = 60)
 ```
 
-# Szereg - Index cen nieruchomości
+Na wykresie pojawia się wartość znacząca przy Lag=52, ponieważ dane są tygodniowe oznacza to korelację z danymi z poprzednich lat.
+
+## Dekompozycja szeregu
+
+### Modele regresji z trendem liniowym i sezonowością
+
+Poniższy wykres przedstawia dopasowanie dwóch modeli liniowych trendu, z czego jeden z nich uwzględnia sezonowość.
+
+```{r}
+ti <- t
+tT <- tslm(t ~ trend) # Model regrasji z trendem liniowym
+tTS <- tslm(t ~  trend + season) # Model regresji z trendem liniowym i sezonowością
+plot(t)
+lines(fitted(tT), col = "blue", lty = 2)
+lines(fitted(tTS), col = "red", lty = 2)
+```
+
+Model czerwony, uwzględniający sezonowość, został bardzo dobrze dopasowany do szeregu. Wręcz za dobrze (gdyż mogło dojść do przeuczenia), gdyż wektor reszt jest wektorem samych zer.
+
+```{r}
+head(tTS$residuals)
+```
+
+Poniżej model uwzględniający wyłącznie trend liniowy. Sezonowość nadal występuje. Widać też niewielki trend po roku 2020.
+
+```{r}
+tsdisplay(tT$residuals)
+```
+
+### Model addytywny
+
+Ze względu na to , że wariancja sezonowa nie zmienia się w czasie (z wyjątkiem lat 2020 i w wzwyż), zastosowałem dekompozycję addytywną.
+
+```{r}
+t.decompose.add <- decompose(t)
+plot(t.decompose.add)
+```
+
+Szereg został rozłożony na swoje składowe, wyraźnie widać sezonowość. Trend najbardziej widoczny jest po roku 2015.
+
+```{r}
+tsdisplay(t.decompose.add$random)
+```
+
+Z wykresów funkcji ACF i PACF odczytać możemy, że cała sezonowość nie została usunięta z szeregu(PACF posiada wartość odstającą \~52).
+
+## Eliminacja trendu i sezonowości
+
+Z poprzednich wykresów wiem, że szereg charakteryzuje się wyraźnym trendem i sezonowością, którą należy wyeliminować. Dodatkowo, aby pozbyć się gwałtownej zmiany wariancji z początku roku 2020, zastosuję transformację logarytmiczną Boxa-Coxa.
+
+```{r}
+t.bc <- BoxCox(t, lambda = 0)
+t.bc.52 <- diff(t.bc, lag = 52)
+tsdisplay(t.bc.52)
+```
+
+Po usunięciu sezonowości i zastosowaniu transformacji Boxa-Coxa, nadal pozostał silny trend - wykres funkcji ACF jest dodatni i stopniowo maleje.
+
+```{r}
+t.bc.52.1 <- diff(t.bc.52, lag = 1)
+tsdisplay(t.bc.52.1)
+```
+
+Szereg ten nie jest realizacją szumu białego. Widać to po znaczących wartościach odstających dla lag=52. Stacjonarność szeregu sprawdzę korzystając z biblioteki urca, dla ufności $\alpha=0.05$. Zawiera ona test na stacjonarność szeregu: $H_0$ - szereg jest stacjonarny,wobec hipotezy alternatywnej: szereg nie jest stacjonarny.
+
+```{r}
+library(urca)
+t.bc.52.1 %>% ur.kpss() %>% summary()
+```
+
+Wartość statystyki jest bardzo mała, wynosi 0.0072, co jest poniżej wartości krytycznej dla zadanego poziomu ufności. Zatem brak podstaw do odrzucenia hipotezy o stacjonarności szeregu.
+
+## Wyznaczenie parametrów MA
+
+Do wyznaczenia parametrów skorzystam z funkcji Acf. Rząd modelu dobiorę na podstawie wartości odstających.
+
+```{r}
+Acf(t.bc.52.1, lag.max = 210)
+```
+
+```{r}
+a <- Acf(t.bc.52.1, plot = FALSE, lag.max = 210)
+which(abs(a$acf)>1.96/sqrt(a$n.used))
+```
+
+```{r}
+t.m.ar208 <- ar(t.bc.52.1, order.max = 208, aic = FALSE, method = "yule-walker")
+tsdisplay(t.m.ar208$resid)
+```
+
+```{r}
+au <- auto.arima(t, lambda = 0)
+```
+
+```{r}
+tsdiag(au, gof.lag = 50)
+```
+
+# - Index cen nieruchomości
