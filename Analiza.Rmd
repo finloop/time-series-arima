@@ -148,6 +148,10 @@ tsdisplay(t.bc.52)
 Po usunięciu sezonowości i zastosowaniu transformacji Boxa-Coxa, nadal pozostał silny trend - wykres funkcji ACF jest dodatni i stopniowo maleje.
 
 ```{r}
+tsdisplay(t.bc.52)
+```
+
+```{r}
 t.bc.52.1 <- diff(t.bc.52, lag = 1)
 tsdisplay(t.bc.52.1)
 ```
@@ -161,7 +165,7 @@ t.bc.52.1 %>% ur.kpss() %>% summary()
 
 Wartość statystyki jest bardzo mała, wynosi 0.0072, co jest poniżej wartości krytycznej dla zadanego poziomu ufności. Zatem brak podstaw do odrzucenia hipotezy o stacjonarności szeregu.
 
-## Wyznaczenie parametrów MA
+## Wyznaczenie rzędu MA
 
 Do wyznaczenia parametrów skorzystam z funkcji Acf. Rząd modelu dobiorę na podstawie wartości odstających.
 
@@ -169,22 +173,96 @@ Do wyznaczenia parametrów skorzystam z funkcji Acf. Rząd modelu dobiorę na po
 Acf(t.bc.52.1, lag.max = 210)
 ```
 
+Do wyboru mam rzędy MA równe:
+
 ```{r}
-a <- Acf(t.bc.52.1, plot = FALSE, lag.max = 210)
-which(abs(a$acf)>1.96/sqrt(a$n.used))
+t.bc.52.1.acf <- Acf(t.bc.52.1, plot = FALSE, lag.max = 210)
+which(abs(t.bc.52.1.acf$acf)>1.96/sqrt(t.bc.52.1.acf$n.used)) # Wszystkie lag spoza przedziałem
+```
+
+Obliczam współczynniki MA(52) i MA(1):
+
+```{r}
+st <- t.bc.52.1 # szereg stacjonarny
+st.ma52 <- Arima(st, order = c(0,0,52))
+st.ma26 <- Arima(st, order = c(0,0,26))
 ```
 
 ```{r}
-t.m.ar208 <- ar(t.bc.52.1, order.max = 208, aic = FALSE, method = "yule-walker")
-tsdisplay(t.m.ar208$resid)
+st.ma26
 ```
+
+```{r}
+st.ma52
+```
+
+## Wyznaczenie rzędu AR
+
+Do wyznaczenia parametrów skorzystam z funkcji Pacf. Rząd modelu dobiorę na podstawie wartości odstających.
+
+```{r}
+Pacf(t.bc.52.1, lag.max = 210)
+```
+
+Do wyboru mam rzędy AR równe:
+
+```{r}
+t.bc.52.1.pacf <- Pacf(t.bc.52.1, plot = FALSE, lag.max = 210)
+which(abs(t.bc.52.1.pacf$acf)>1.96/sqrt(t.bc.52.1.pacf$n.used)) # Wszystkie lag spoza przedziałem
+```
+
+### AR(52) i AR(56)
+
+Obliczam współczynniki AR(52), AR(56), AR(1):
+
+```{r}
+st.ar56.yw <-ar(st, order.max = 56, aic = FALSE, method = "yule-walker")
+st.ar56.burg <- ar(st, order.max = 56, aic = FALSE, method ="burg")
+st.ar52.yw <- ar(st, order.max = 52, aic = FALSE)
+st.ar1.yw<- ar(st, order.max = 1, aic = FALSE)
+```
+
+Lista obliczonych współczynników:
+
+```{r}
+st.ar56 <- Arima(st, order = c(56,0,0))
+st.ar52 <- Arima(st, order = c(52,0,0), method = "CSS")
+```
+
+```{r}
+summary(st.ar56)
+```
+
+```{r}
+summary(st.ar52)
+```
+
+Współczynniki dla AR(56) i AR(52) są podobne.
+
+### auto.arima
 
 ```{r}
 au <- auto.arima(t, lambda = 0)
 ```
 
 ```{r}
-tsdiag(au, gof.lag = 50)
+summary(au)
+```
+
+## Porównanie analizowanych modeli
+
+Wszystkie modele korzystały z transformacji Boxa-Coxa więc mogę je porównywać między sobą.
+
+    # ARIMA(0,0,26)           AIC=-379.66   AICc=-377.41   BIC=-250.22
+    # ARIMA(0,0,52)             AIC=-475.62   AICc=-467.09   BIC=-225.99
+    # ARIMA(56,0,0)             AIC=-540.75 + AICc=-530.87 + BIC=-272.63
+    # ARIMA(1,0,0)              AIC=-181.41   AICc=-181.38   BIC=-167.54
+    # ARIMA(1,1,0)(1,1,0)[52] AIC=-343.57   AICc=-343.54   BIC=-329.7  +
+
+Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0). Pomimo dużej ilości, parametrów jako jedyny y przechodzi test Ljung-Boxa. Analiza reszt znajduje się na wykresach poniżej.
+
+```{r}
+checkresiduals(st.ar56)
 ```
 
 # - Index cen nieruchomości
