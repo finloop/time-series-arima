@@ -40,5 +40,5 @@ vignettes/*.pdf
 
 # Knitr
 Analiza_cache/
-Analiza_files/
+Analiza_files/figure-latex/
 Analiza.tex

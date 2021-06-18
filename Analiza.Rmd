@@ -1,19 +1,17 @@
 ---
 title: "Analiza szeregów czasowych"
 author: "Krawiec Piotr"
-date: "12/06/2021"
+date: "18/06/2021"
 output: 
+  md_document:
+    variant: markdown_github
   pdf_document:
     number_sections: true
-    toc: true
-    toc_depth: 3
     keep_tex: yes
-  includes:
-    in_header: latex/header.tex
-    before_body: latex/before_body.tex
-    after_body: latex/after_body.tex
 csl: cit.csl
 lang: pl
+abstract: |
+  Celem pracy jest analiza dwóch szeregów czasowych z wykorzystaniem języka R. Pierwszego zawierającego silną sezonowość, drugiego silny trend. Szeregi poddane dekompozycji, usunięciu trendu i sezonowości. Zbadana i potwierdzona została stacjonarność reszt obu szeregów, a ostatecznie zostały modelowane modelem ARIMA. Przewidywania dotyczące dalszego ich przebiegu zostały stworzone z pomocą metod naiwnych uwzględniających dryf, a także sezonowość. Analiza reszt obu szeregów potwierdziła, że stanowią one realizację szumu białego.
 ---
 
 ```{r setup, include=FALSE, warning=FALSE}
@@ -45,7 +43,7 @@ Sys.setlocale("LC_ALL", "Polish")
 
 # Szereg - Rozwój biznesu
 
-Na szereg ten składają się dane po chodzące ze strony [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States").Dane zbierane są przez U.S Census Bureau, obejmują lata 2006-2021. Zbierane są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie identyfikatora EAN (Employer Identyfication Number). Każdy pracodawna, koropracja, organizacja non-profit itp muszą posiadać takie numery, aby móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile nowych biznesów powstaje.
+Na szereg ten składają się dane po chodzące ze strony [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States").Dane zbierane są przez U.S Census Bureau, obejmują lata 2006-2021. Zbierane są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie identyfikatora EAN (Employer Identyfication Number). Każdy pracodawca, korporacja, organizacja non-profit itp muszą posiadać takie numery, aby móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile nowych biznesów powstaje.
 
 Do korzyści jakie przyniesie prognoza należy przewidywanie rozwoju gospodarki, gdyż nowo powstające biznesy mogą świadczyć o tym że w kraju panują korzystne warunki do rozwoju biznesu. Analiza szeregu pozwoli też przewidzieć jak ludzie postrzegają obecny stan gospodarki - czy są w stanie zaryzykować inwestując we własny biznes.
 
@@ -318,7 +316,11 @@ ind.ts <- ts(ind$CSUSHPINSA, start = c(1987, 01), frequency = 12)
 tsdisplay(ind.ts)
 ```
 
-Szereg charakteryzuje się dodatnim trendem (dodatnia, powoli opadająca funkcja ACF). Na pierwszy rzut oka nie widać sezonowości, także funkcja PACF na nią nie wskazuje.
+Szereg charakteryzuje się dodatnim trendem (dodatnia, powoli opadająca funkcja ACF). Na pierwszy rzut oka nie widać sezonowości, także funkcja PACF na nią nie wskazuje. Problemem natomiast mogą być dane z roku 2010. Zatem w celu dopasowania szeregu do analizy dane sprzed roku 2011 zostaną pominięte.
+
+```{r}
+ind.ts <- window(ind.ts, start = c(2011,01))
+```
 
 ## Dekompozycje szeregu
 
@@ -355,7 +357,7 @@ ndiffs(ind.ts)
 nsdiffs(ind.ts)
 ```
 
-Funkcje wskazują na to, że aby uzyskać szereg stacjonarny należy zróżnicować dwukrotnie z lag=1 oraz jednokrotnie z lag=12.
+Funkcje wskazują na to, że aby uzyskać szereg stacjonarny należy zróżnicować co najmniej jednokrotnie z lag=1 oraz jednokrotnie z lag=12.
 
 ```{r}
 ind.lambda <- BoxCox.lambda(ind.ts)
@@ -396,21 +398,15 @@ ind.st.acf$lag[which(abs(ind.st.acf$acf)>1.96/sqrt(ind.st.acf$n.used))] # Wszyst
 Wyznaczę modele MA(12), MA(9) oraz MA(3):
 
 ```{r}
-ind.st.ma12 <- Arima(st, order = c(0,0,12))
-ind.st.ma9 <- Arima(st, order = c(0,0,9))
+ind.st.ma10 <- Arima(st, order = c(0,0,10))
 ind.st.ma3 <- Arima(st, order = c(0,0,3))
 ```
 
 Część współczynników oraz metryki modeli:
 
 ```{r}
-c(ind.st.ma12$aic, ind.st.ma12$aicc, ind.st.ma12$bic)
-ind.st.ma12$coef[1:5]
-```
-
-```{r}
-c(ind.st.ma9$aic, ind.st.ma9$aicc, ind.st.ma9$bic)
-ind.st.ma9$coef[1:5]
+c(ind.st.ma10$aic, ind.st.ma10$aicc, ind.st.ma10$bic)
+ind.st.ma10$coef[1:5]
 ```
 
 ```{r}
@@ -418,7 +414,7 @@ c(ind.st.ma3$aic, ind.st.ma3$aicc, ind.st.ma3$bic)
 ind.st.ma3$coef
 ```
 
-Współczynniki MA(12) i MA(9) są podobne. Wszystkie modele mają podobne wartości AIC, AICc oraz BIC.
+Współczynniki MA(10) i MA(3) są podobne. Wszystkie modele mają podobne wartości AIC, AICc oraz BIC.
 
 ## Wyznaczenie rzędu AR
 
@@ -435,13 +431,11 @@ ind.st.pacf <- Pacf(ind.st, plot =  FALSE, lag.max = 100)
 ind.st.pacf$lag[which(abs(ind.st.pacf$acf)>1.96/sqrt(ind.st.pacf$n.used))] # Wszystkie lag poza przedziałem
 ```
 
-Obliczę współczynniki dla AR(3), AR(15), AR(9) i AR(5).
+Obliczę współczynniki dla AR(3) i AR(24):
 
 ```{r}
 ind.st.ar3 <- Arima(st, order = c(3,0,0))
-ind.st.ar15 <- Arima(st, order = c(15,0,0))
-ind.st.ar9 <- Arima(st, order = c(9,0,0))
-ind.st.ar5 <- Arima(st, order = c(5,0,0))
+ind.st.ar24 <- Arima(st, order = c(24,0,0))
 ```
 
 Część współczynników oraz metryki modeli:
@@ -452,26 +446,16 @@ ind.st.ar3$coef[1:3]
 ```
 
 ```{r}
-c(ind.st.ar15$aic, ind.st.ar15$aicc, ind.st.ar15$bic)
-ind.st.ar15$coef[1:5]
+c(ind.st.ar24$aic, ind.st.ar24$aicc, ind.st.ar24$bic)
+ind.st.ar24$coef[1:5]
 ```
 
-```{r}
-c(ind.st.ar9$aic, ind.st.ar9$aicc, ind.st.ar9$bic)
-ind.st.ar9$coef[1:5]
-```
-
-```{r}
-c(ind.st.ar5$aic, ind.st.ar5$aicc, ind.st.ar5$bic)
-ind.st.ar5$coef[1:5]
-```
-
-Współczynniki wszystkich modeli oraz ich metryki są podobne.
+Metryki ACC i ACCc tych modeli są podobne, ale model AR(3) ma lepszą (mniejszą) metrykę BIC.
 
 ## auto.arima
 
 ```{r}
-ind.auto <- auto.arima(ind.st, max.p = 20, max.q = 20, max.P = 5, max.Q = 5, ic="aicc")
+ind.auto <- auto.arima(ind.st, ic="aicc")
 summary(ind.auto)
 ```
 
@@ -479,20 +463,46 @@ summary(ind.auto)
 
 Zebrałem parametry AIC, AICc oraz BIC dla tego szeregu w tabeli poniżej. Wybrany zostanie model, który ma te współczynniki najmniejsze.
 
-```
-# ARIMA(0 ,0,12)                AIC=-390.4213   AICc=-389.8514   BIC=-325.7030} 
-# ARIMA(0 ,0, 9)            AIC=-396.3046   AICc=-395.9478   BIC=-345.4545 
-# ARIMA(0 ,0, 3)            AIC=-397.3129   AICc=-397.2324   BIC=-374.1992 
-# ARIMA(3 ,0, 0)            AIC=-338.0322   AICc=-337.9517   BIC=-314.9185
-# ARIMA(15,0, 0)            AIC=-375.9754   AICc=-375.1416   BIC=-297.3889 
-# ARIMA(9 ,0, 0)            AIC=-373.2033   AICc=-372.8466   BIC=-322.3532 
-# ARIMA(5 ,0, 0)            AIC=-356.1699   AICc=-356.0194   BIC=-323.8107 
-# ARIMA(1 ,0, 3)(0,0,2)[12] AIC=-6942.82  + AICc=-6942.53  + BIC=-6914.93  +
-```
+    # ARIMA(0,0,10)     AIC=-394.31     AICc=-393.88    BIC=-338.83
+    # ARIMA(0,0,3)      AIC=-397.31     AICc=-397.23    BIC=-374.2
+    # ARIMA(3,0,0)      AIC=-338.03     AICc=-337.95    BIC=-314.9
+    # ARIMA(24,0,0)     AIC=-374.35     AICc=-372.42    BIC=-254.16
+    # ARIMA(0,0,0)      AIC=-1976.09 +  AICc=-1976.06 + BIC=-1973.4 +
 
-Najlepszym wydaje się model dobrany automatycznie ARIMA(1 ,0, 3)(0,0,2)[12]. Poprawność modelu, sprawdzę z pomocą funkcji `checkresiduals` .
-
+Najlepszym wydaje się model dobrany automatycznie ARIMA(0,0,0). Poprawność modelu, sprawdzę z pomocą funkcji `checkresiduals` .
 
 ```{r}
 checkresiduals(ind.auto)
 ```
+
+Reszty przechodzą test.
+
+## Prognozowanie
+
+Do prognozowania zostaną wykorzystane modele naiwne.
+
+### Błądzenie losowe z dryfem
+
+```{r}
+plot(rwf(ind.ts, h = 60, drift = TRUE))
+```
+
+Model błądzenia losowego z dryfem dobrze sprawdza się dla tego modelu, ponieważ uwzględnia on jego rosnący trend. Predykcje może poprawić ustawienie parametru `lambda`.
+
+```{r}
+plot(rwf(ind.ts, h = 60, drift = TRUE, lambda = ind.lambda))
+```
+
+Predykcja na pierwszy rzut oka znacznie się poprawiła, przynajmniej dla najbliższych kilku miesięcy, raczej nie można się spodziewać ciągłego wzrostu tego indeksu.
+
+### Prognozowanie naiwne sezonowe
+
+```{r}
+plot(snaive(ind.ts, h = 60, lambda = ind.lambda))
+```
+
+Prognoza ta nie wydaje się odpowiednia. Nie uwzględnia tego, że indeks może rosnąć.
+
+# Wnioski
+
+Modelowanie szeregów z pomocą R jest bardzo proste. Mamy szereg gotowych funkcji, które przeprowadzą nas przez cały proces od dekompozycji szeregu, eliminacji trendu i sezonowości po automatyczne dopasowanie modelu do szeregu. Nie wszystkie szeregi jednak będzie się dało tak modelować, w przypadku modeli ARIMA generowanych funkcją `auto.arima` nadal należy sprawdzić czy szereg reszt zachowuje się jak biały szum (gdyż nie zawsze tak jest), można to zrobić chociażby funkcją `checkresiduals`. Prognozy naiwne dają proste predykcje na temat najbliższej przyszłości, które mogą być w miarę dokładne o ile wybraliśmy odpowiednią funkcję do predykcji oraz przedział predykcji nie jest zbyt duży.

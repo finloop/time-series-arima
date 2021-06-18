@@ -4,8 +4,8 @@ Na szereg ten składają się dane po chodzące ze strony
 [FRED](https://fred.stlouisfed.org/series/BUSAPPWNSAUS "FRED Economic data - Business Applications for United States").Dane
 zbierane są przez U.S Census Bureau, obejmują lata 2006-2021. Zbierane
 są w tygodniowych odstępach i dotyczą ilości wniosków o wydanie
-identyfikatora EAN (Employer Identyfication Number). Każdy pracodawna,
-koropracja, organizacja non-profit itp muszą posiadać takie numery, aby
+identyfikatora EAN (Employer Identyfication Number). Każdy pracodawca,
+korporacja, organizacja non-profit itp muszą posiadać takie numery, aby
 móc rozliczać się z podatku. Jest to zatem dobry wskaźnik tego ile
 nowych biznesów powstaje.
 
@@ -472,7 +472,13 @@ tsdisplay(ind.ts)
 
 Szereg charakteryzuje się dodatnim trendem (dodatnia, powoli opadająca
 funkcja ACF). Na pierwszy rzut oka nie widać sezonowości, także funkcja
-PACF na nią nie wskazuje.
+PACF na nią nie wskazuje. Problemem natomiast mogą być dane z roku 2010.
+Zatem w celu dopasowania szeregu do analizy dane sprzed roku 2011
+zostaną pominięte.
+
+``` r
+ind.ts <- window(ind.ts, start = c(2011,01))
+```
 
 ## Dekompozycje szeregu
 
@@ -489,7 +495,7 @@ lines(fitted(tTS), col = "red", lty = 2)
 lines(fitted(tPS), col = "green", lty = 2)
 ```
 
-![](Analiza_files/figure-markdown_github/unnamed-chunk-33-1.png)
+![](Analiza_files/figure-markdown_github/unnamed-chunk-34-1.png)
 
 Dekompozycja wskazuje na to, że nie jest to trend liniowy. Sezonowość
 również nie jest wyraźnie widoczna i nie wpływa na dopasowanie modelu do
@@ -502,7 +508,7 @@ ind.decompose <- decompose(ind.ts, type ="multiplicative")
 plot(ind.decompose)
 ```
 
-![](Analiza_files/figure-markdown_github/unnamed-chunk-34-1.png)
+![](Analiza_files/figure-markdown_github/unnamed-chunk-35-1.png)
 
 Dekompozycja multiplikacyjna potwierdza wcześniejsze wyniki. Wyraźny
 jest trend, patrząc na rząd uzyskanej sezonowości, jest on dwukrotnie
@@ -517,7 +523,7 @@ ile razy należy różnicować, aby usunąć trend i sezonowość.
 ndiffs(ind.ts)
 ```
 
-    ## [1] 2
+    ## [1] 1
 
 ``` r
 nsdiffs(ind.ts)
@@ -526,7 +532,7 @@ nsdiffs(ind.ts)
     ## [1] 1
 
 Funkcje wskazują na to, że aby uzyskać szereg stacjonarny należy
-zróżnicować dwukrotnie z lag=1 oraz jednokrotnie z lag=12.
+zróżnicować co najmniej jednokrotnie z lag=1 oraz jednokrotnie z lag=12.
 
 ``` r
 ind.lambda <- BoxCox.lambda(ind.ts)
@@ -536,7 +542,7 @@ ind.bc.1.1.12 <- diff(ind.bc.1.1, lag = 12)
 tsdisplay(ind.bc.1.1.12, lag.max = 100)
 ```
 
-![](Analiza_files/figure-markdown_github/unnamed-chunk-36-1.png)
+![](Analiza_files/figure-markdown_github/unnamed-chunk-37-1.png)
 
 Jak widać po zróżnicowaniu reszty przypominają już szereg stacjonarny.
 Zostanie to jeszcze potwierdzone testem.
@@ -549,7 +555,7 @@ shapiro.test(ind.bc.1.1.12)
     ##  Shapiro-Wilk normality test
     ## 
     ## data:  ind.bc.1.1.12
-    ## W = 0.928, p-value = 6.778e-13
+    ## W = 0.90079, p-value = 6.23e-07
 
 Szereg reszt nie jest realizacją szumu białego.
 
@@ -564,7 +570,7 @@ ind.bc.1.1.12 %>% ur.kpss(use.lag = 12) %>% summary()
     ## 
     ## Test is of type: mu with 12 lags. 
     ## 
-    ## Value of test-statistic is: 0.0219 
+    ## Value of test-statistic is: 0.2254 
     ## 
     ## Critical value for a significance level of: 
     ##                 10pct  5pct 2.5pct  1pct
@@ -580,7 +586,7 @@ ind.st <- ind.bc.1.1.12 # Szereg stacjonarny
 Acf(ind.st, lag.max = 50)
 ```
 
-![](Analiza_files/figure-markdown_github/unnamed-chunk-39-1.png)
+![](Analiza_files/figure-markdown_github/unnamed-chunk-40-1.png)
 
 Do rozważenia mamy następujące modele MA:
 
@@ -589,43 +595,29 @@ ind.st.acf <- Acf(ind.st, plot = FALSE, lag.max = 100)
 ind.st.acf$lag[which(abs(ind.st.acf$acf)>1.96/sqrt(ind.st.acf$n.used))] # Wszystkie lag poza przedziałem
 ```
 
-    ## [1]  0  3  5  9 12 17 47
+    ## [1]  0  3 10
 
 Wyznaczę modele MA(12), MA(9) oraz MA(3):
 
 ``` r
-ind.st.ma12 <- Arima(st, order = c(0,0,12))
-ind.st.ma9 <- Arima(st, order = c(0,0,9))
+ind.st.ma10 <- Arima(st, order = c(0,0,10))
 ind.st.ma3 <- Arima(st, order = c(0,0,3))
 ```
 
 Część współczynników oraz metryki modeli:
 
 ``` r
-c(ind.st.ma12$aic, ind.st.ma12$aicc, ind.st.ma12$bic)
+c(ind.st.ma10$aic, ind.st.ma10$aicc, ind.st.ma10$bic)
 ```
 
-    ## [1] -390.4213 -389.8514 -325.7030
+    ## [1] -394.3058 -393.8837 -338.8330
 
 ``` r
-ind.st.ma12$coef[1:5]
+ind.st.ma10$coef[1:5]
 ```
 
     ##          ma1          ma2          ma3          ma4          ma5 
-    ## -0.858869447 -0.043293060  0.083407918 -0.007491112 -0.049770078
-
-``` r
-c(ind.st.ma9$aic, ind.st.ma9$aicc, ind.st.ma9$bic)
-```
-
-    ## [1] -396.3046 -395.9478 -345.4545
-
-``` r
-ind.st.ma9$coef[1:5]
-```
-
-    ##          ma1          ma2          ma3          ma4          ma5 
-    ## -0.858550110 -0.043606374  0.083994651 -0.008120658 -0.050630764
+    ## -0.858563469 -0.043624786  0.084099016 -0.008189441 -0.050676046
 
 ``` r
 c(ind.st.ma3$aic, ind.st.ma3$aicc, ind.st.ma3$bic)
@@ -640,7 +632,7 @@ ind.st.ma3$coef
     ##           ma1           ma2           ma3     intercept 
     ## -0.8500634318 -0.0501600018  0.0141696263  0.0008092502
 
-Współczynniki MA(12) i MA(9) są podobne. Wszystkie modele mają podobne
+Współczynniki MA(10) i MA(3) są podobne. Wszystkie modele mają podobne
 wartości AIC, AICc oraz BIC.
 
 ## Wyznaczenie rzędu AR
@@ -662,13 +654,11 @@ ind.st.pacf$lag[which(abs(ind.st.pacf$acf)>1.96/sqrt(ind.st.pacf$n.used))] # Wsz
 
     ## [1]  3  5  9 12 15 24 35 60 82
 
-Obliczę współczynniki dla AR(3), AR(15), AR(9) i AR(5).
+Obliczę współczynniki dla AR(3) i AR(24):
 
 ``` r
 ind.st.ar3 <- Arima(st, order = c(3,0,0))
-ind.st.ar15 <- Arima(st, order = c(15,0,0))
-ind.st.ar9 <- Arima(st, order = c(9,0,0))
-ind.st.ar5 <- Arima(st, order = c(5,0,0))
+ind.st.ar24 <- Arima(st, order = c(24,0,0))
 ```
 
 Część współczynników oraz metryki modeli:
@@ -687,98 +677,117 @@ ind.st.ar3$coef[1:3]
     ## -0.7416738 -0.5372127 -0.2538657
 
 ``` r
-c(ind.st.ar15$aic, ind.st.ar15$aicc, ind.st.ar15$bic)
+c(ind.st.ar24$aic, ind.st.ar24$aicc, ind.st.ar24$bic)
 ```
 
-    ## [1] -375.9754 -375.1416 -297.3889
+    ## [1] -374.3548 -372.4183 -254.1637
 
 ``` r
-ind.st.ar15$coef[1:5]
+ind.st.ar24$coef[1:5]
 ```
 
     ##        ar1        ar2        ar3        ar4        ar5 
-    ## -0.8430700 -0.7493221 -0.5799817 -0.4492130 -0.3843793
+    ## -0.8535014 -0.7637317 -0.6098465 -0.4895556 -0.4252854
 
-``` r
-c(ind.st.ar9$aic, ind.st.ar9$aicc, ind.st.ar9$bic)
-```
-
-    ## [1] -373.2033 -372.8466 -322.3532
-
-``` r
-ind.st.ar9$coef[1:5]
-```
-
-    ##        ar1        ar2        ar3        ar4        ar5 
-    ## -0.8256883 -0.7168246 -0.5305624 -0.3837239 -0.3076455
-
-``` r
-c(ind.st.ar5$aic, ind.st.ar5$aicc, ind.st.ar5$bic)
-```
-
-    ## [1] -356.1699 -356.0194 -323.8107
-
-``` r
-ind.st.ar5$coef[1:5]
-```
-
-    ##         ar1         ar2         ar3         ar4         ar5 
-    ## -0.79174118 -0.64811758 -0.41641226 -0.21625553 -0.08736639
-
-Współczynniki wszystkich modeli oraz ich metryki są podobne.
+Metryki ACC i ACCc tych modeli są podobne, ale model AR(3) ma lepszą
+(mniejszą) metrykę BIC.
 
 ## auto.arima
 
 ``` r
-ind.auto <- auto.arima(ind.st, max.p = 20, max.q = 20, max.P = 5, max.Q = 5, ic="aicc")
+ind.auto <- auto.arima(ind.st, ic="aicc")
 summary(ind.auto)
 ```
 
     ## Series: ind.st 
-    ## ARIMA(1,0,3)(0,0,2)[12] with zero mean 
+    ## ARIMA(0,0,0) with zero mean 
     ## 
-    ## Coefficients:
-    ##          ar1      ma1      ma2      ma3     sma1     sma2
-    ##       0.5454  -0.3791  -0.0528  -0.3352  -0.6643  -0.1926
-    ## s.e.  0.0950   0.0990   0.0499   0.0507   0.0523   0.0497
-    ## 
-    ## sigma^2 estimated as 1.403e-09:  log likelihood=3478.41
-    ## AIC=-6942.82   AICc=-6942.53   BIC=-6914.93
+    ## sigma^2 estimated as 7.693e-10:  log likelihood=989.05
+    ## AIC=-1976.09   AICc=-1976.06   BIC=-1973.4
     ## 
     ## Training set error measures:
-    ##                        ME         RMSE          MAE      MPE     MAPE      MASE
-    ## Training set 1.983769e-06 3.717278e-05 2.487803e-05 251.2911 304.1389 0.4875051
-    ##                     ACF1
-    ## Training set -0.01005086
+    ##                         ME         RMSE          MAE MPE MAPE      MASE
+    ## Training set -3.583462e-07 2.773631e-05 1.843991e-05 100  100 0.7323253
+    ##                  ACF1
+    ## Training set 0.139861
 
 ## Porównanie analizowanych modeli
 
 Zebrałem parametry AIC, AICc oraz BIC dla tego szeregu w tabeli poniżej.
 Wybrany zostanie model, który ma te współczynniki najmniejsze.
 
-    # ARIMA(0 ,0,12)                AIC=-390.4213   AICc=-389.8514   BIC=-325.7030} 
-    # ARIMA(0 ,0, 9)            AIC=-396.3046   AICc=-395.9478   BIC=-345.4545 
-    # ARIMA(0 ,0, 3)            AIC=-397.3129   AICc=-397.2324   BIC=-374.1992 
-    # ARIMA(3 ,0, 0)            AIC=-338.0322   AICc=-337.9517   BIC=-314.9185
-    # ARIMA(15,0, 0)            AIC=-375.9754   AICc=-375.1416   BIC=-297.3889 
-    # ARIMA(9 ,0, 0)            AIC=-373.2033   AICc=-372.8466   BIC=-322.3532 
-    # ARIMA(5 ,0, 0)            AIC=-356.1699   AICc=-356.0194   BIC=-323.8107 
-    # ARIMA(1 ,0, 3)(0,0,2)[12] AIC=-6942.82  + AICc=-6942.53  + BIC=-6914.93  +
+    # ARIMA(0,0,10)     AIC=-394.31     AICc=-393.88    BIC=-338.83
+    # ARIMA(0,0,3)      AIC=-397.31     AICc=-397.23    BIC=-374.2
+    # ARIMA(3,0,0)      AIC=-338.03     AICc=-337.95    BIC=-314.9
+    # ARIMA(24,0,0)     AIC=-374.35     AICc=-372.42    BIC=-254.16
+    # ARIMA(0,0,0)      AIC=-1976.09 +  AICc=-1976.06 + BIC=-1973.4 +
 
-Najlepszym wydaje się model dobrany automatycznie ARIMA(1 ,0,
-3)(0,0,2)\[12\]. Poprawność modelu, sprawdzę z pomocą funkcji
-`checkresiduals` .
+Najlepszym wydaje się model dobrany automatycznie ARIMA(0,0,0).
+Poprawność modelu, sprawdzę z pomocą funkcji `checkresiduals` .
 
 ``` r
 checkresiduals(ind.auto)
 ```
 
-![](Analiza_files/figure-markdown_github/unnamed-chunk-53-1.png)
+![](Analiza_files/figure-markdown_github/unnamed-chunk-51-1.png)
 
     ## 
     ##  Ljung-Box test
     ## 
-    ## data:  Residuals from ARIMA(1,0,3)(0,0,2)[12] with zero mean
-    ## Q* = 50.83, df = 18, p-value = 5.648e-05
+    ## data:  Residuals from ARIMA(0,0,0) with zero mean
+    ## Q* = 40.256, df = 22, p-value = 0.01009
     ## 
-    ## Model df: 6.   Total lags used: 24
+    ## Model df: 0.   Total lags used: 22
+
+Reszty przechodzą test.
+
+## Prognozowanie
+
+Do prognozowania zostaną wykorzystane modele naiwne.
+
+### Błądzenie losowe z dryfem
+
+``` r
+plot(rwf(ind.ts, h = 60, drift = TRUE))
+```
+
+![](Analiza_files/figure-markdown_github/unnamed-chunk-52-1.png)
+
+Model błądzenia losowego z dryfem dobrze sprawdza się dla tego modelu,
+ponieważ uwzględnia on jego rosnący trend. Predykcje może poprawić
+ustawienie parametru `lambda`.
+
+``` r
+plot(rwf(ind.ts, h = 60, drift = TRUE, lambda = ind.lambda))
+```
+
+![](Analiza_files/figure-markdown_github/unnamed-chunk-53-1.png)
+
+Predykcja na pierwszy rzut oka znacznie się poprawiła, przynajmniej dla
+najbliższych kilku miesięcy, raczej nie można się spodziewać ciągłego
+wzrostu tego indeksu.
+
+### Prognozowanie naiwne sezonowe
+
+``` r
+plot(snaive(ind.ts, h = 60, lambda = ind.lambda))
+```
+
+![](Analiza_files/figure-markdown_github/unnamed-chunk-54-1.png)
+
+Prognoza ta nie wydaje się odpowiednia. Nie uwzględnia tego, że indeks
+może rosnąć.
+
+# Wnioski
+
+Modelowanie szeregów z pomocą R jest bardzo proste. Mamy szereg gotowych
+funkcji, które przeprowadzą nas przez cały proces od dekompozycji
+szeregu, eliminacji trendu i sezonowości po automatyczne dopasowanie
+modelu do szeregu. Nie wszystkie szeregi jednak będzie się dało tak
+modelować, w przypadku modeli ARIMA generowanych funkcją `auto.arima`
+nadal należy sprawdzić czy szereg reszt zachowuje się jak biały szum
+(gdyż nie zawsze tak jest), można to zrobić chociażby funkcją
+`checkresiduals`. Prognozy naiwne dają proste predykcje na temat
+najbliższej przyszłości, które mogą być w miarę dokładne o ile
+wybraliśmy odpowiednią funkcję do predykcji oraz przedział predykcji nie
+jest zbyt duży.
