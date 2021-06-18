@@ -1,3 +1,6 @@
+# Abstrakt
+
+Celem pracy jest analiza dwóch szeregów czasowych z wykorzystaniem języka R. Pierwszego zawierającego silną sezonowość, drugiego silny trend. Szeregi poddane dekompozycji, usunięciu trendu i sezonowości. Zbadana i potwierdzona została stacjonarność reszt obu szeregów, a ostatecznie zostały modelowane modelem ARIMA. Przewidywania dotyczące dalszego ich przebiegu zostały stworzone z pomocą metod naiwnych uwzględniających dryf, a także sezonowość. Analiza reszt obu szeregów potwierdziła, że stanowią one realizację szumu białego.
 # Szereg - Rozwój biznesu
 
 Na szereg ten składają się dane po chodzące ze strony
