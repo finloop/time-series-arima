@@ -343,3 +343,18 @@ plot(ind.decompose)
 Dekompozycja multiplikacyjna potwierdza wcześniejsze wyniki. Wyraźny jest trend, patrząc na rząd uzyskanej sezonowości, jest on dwukrotnie mniejszy od trendu.
 
 ## Usunięcie trendu i sezonowości
+
+Tym razem skorzystam z pomocy funkcji `ndiffs` i `nsdiffs`, wskazują one ile razy należy różnicować, aby usunąć trend i sezonowość.
+
+```{r, out.lines = c(1,2)}
+ndiffs(ind.ts)
+nsdiffs(ind.ts)
+```
+
+```{r}
+ind.lambda <- BoxCox.lambda(ind.ts)
+ind.bc <- BoxCox(ind.ts, ind.lambda)
+ind.bc.1.1 <- diff(diff(ind.bc, lag = 1), lag = 1)
+ind.bc.1.1.12 <- diff(ind.bc.1.1, lag = 12)
+tsdisplay(ind.bc.1.1.12)
+```
