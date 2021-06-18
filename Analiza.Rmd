@@ -289,4 +289,57 @@ plot(t.snaive)
 
 Prognoza naiwna sezonowa daje na pierwszy rzut oka najlepsze rezultaty. Uwzględnia ona silną sezonowość szeregu oraz to że w poprzednich latach składowa trendu była dużo większa, jednak nie uwzględnia ona przyszłego wzrostu trendu.
 
-# - Index cen nieruchomości
+# Index cen nieruchomości
+
+Szereg ten pochodzi ze strony [FRED](https://fred.stlouisfed.org/series/CSUSHPINSA). Szereg obliczany jest na podstawie danych z obrotów nieruchomościami i wygładzany jest z pomocą 3-miesięcznej średniej ruchomej. Głównie brane pod uwagę są domy jednorodzinne. Szereg rozstał unormowany tak aby cena ze stycznia 2000 roku była równa 100 i każda następna jest określona wobec niej.
+
+Korzyści jakie może przynieść analiza tego szeregu to przewidywanie cen nieruchomości na rynku czy przewidywanie kolejnej bańki finansowej.
+
+## Wczytanie danych
+
+Dane pobrane zostały ze strony <https://fred.stlouisfed.org/series/CSUSHPINSA> w formacie csv.
+
+```{r}
+ind <- read.csv2("Datasets/CSUSHPINSA.csv", sep = ",")
+ind$CSUSHPINSA <- as.numeric(ind$CSUSHPINSA)
+head(ind)
+```
+
+## Główne cechy analizowanych danych
+
+Zacznę od zamiany szeregu na szereg czasowy oraz analizy funkcji ACF i PACF.
+
+```{r}
+ind.ts <- ts(ind$CSUSHPINSA, start = c(1987, 01), frequency = 12)
+tsdisplay(ind.ts)
+```
+
+Szereg charakteryzuje się dodatnim trendem (dodatnia, powoli opadająca funkcja ACF). Na pierwszy rzut oka nie widać sezonowości, także funkcja PACF na nią nie wskazuje.
+
+## Dekompozycje szeregu
+
+### Modele z trendem liniowym, wielomianowym i sezonowością
+
+```{r}
+ti <- ind.ts
+tT <- tslm(ti ~ trend) # Model regrasji z trendem liniowym
+tTS <- tslm(ti ~  trend + season) # Model regresji z trendem liniowym i sezonowością
+tPS <- tslm(ti ~  poly(trend, raw=TRUE, degree = 9)) # Model regresji z trendem liniowym i
+plot(ti)
+lines(fitted(tT), col = "blue", lty = 2)
+lines(fitted(tTS), col = "red", lty = 2)
+lines(fitted(tPS), col = "green", lty = 2)
+```
+
+Dekompozycja wskazuje na to, że nie jest to trend liniowy. Sezonowość również nie jest wyraźnie widoczna i nie wpływa na dopasowanie modelu do szeregu.
+
+### Model multiplikatywny
+
+```{r}
+ind.decompose <- decompose(ind.ts, type ="multiplicative")
+plot(ind.decompose)
+```
+
+Dekompozycja multiplikacyjna potwierdza wcześniejsze wyniki. Wyraźny jest trend, patrząc na rząd uzyskanej sezonowości, jest on dwukrotnie mniejszy od trendu.
+
+## Usunięcie trendu i sezonowości
