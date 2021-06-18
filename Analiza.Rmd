@@ -185,12 +185,16 @@ st.ma52 <- Arima(st, order = c(0,0,52))
 st.ma26 <- Arima(st, order = c(0,0,26))
 ```
 
+Oto część obliczonych współczynników dla modeli:
+
 ```{r}
-st.ma26
+c(st.ma26$aic, st.ma26$aicc, st.ma26$bic)
+st.ma26$coef[1:5]
 ```
 
 ```{r}
-st.ma52
+c(st.ma52$aic, st.ma52$aicc, st.ma52$bic)
+st.ma52$coef[1:5]
 ```
 
 ## Wyznaczenie rzędu AR
@@ -208,8 +212,6 @@ t.bc.52.1.pacf <- Pacf(t.bc.52.1, plot = FALSE, lag.max = 210)
 t.bc.52.1.pacf$lag[which(abs(t.bc.52.1.pacf$acf)>1.96/sqrt(t.bc.52.1.pacf$n.used))] # Wszystkie lag spoza przedziałem
 ```
 
-### AR(52) i AR(56)
-
 Obliczam współczynniki AR(52), AR(56):
 
 ```{r}
@@ -219,24 +221,26 @@ st.ar52.yw <- ar(st, order.max = 52, aic = FALSE)
 st.ar1.yw<- ar(st, order.max = 1, aic = FALSE)
 ```
 
-Lista obliczonych współczynników:
-
 ```{r}
 st.ar56 <- Arima(st, order = c(56,0,0))
 st.ar52 <- Arima(st, order = c(52,0,0), method = "CSS")
 ```
 
+Współczynniki, aic, aicc oraz bic:
+
 ```{r}
-summary(st.ar56)
+c(st.ar56$aic, st.ar56$aicc, st.ar56$bic)
+st.ar56$coef[1:10]
 ```
 
 ```{r}
-summary(st.ar52)
+c(st.ar52$aic, st.ar52$aicc, st.ar52$bic)
+st.ar52$coef[1:10]
 ```
 
 Współczynniki dla AR(56) i AR(52) są podobne.
 
-### auto.arima
+## auto.arima
 
 ```{r}
 au <- auto.arima(st)
@@ -351,10 +355,144 @@ ndiffs(ind.ts)
 nsdiffs(ind.ts)
 ```
 
+Funkcje wskazują na to, że aby uzyskać szereg stacjonarny należy zróżnicować dwukrotnie z lag=1 oraz jednokrotnie z lag=12.
+
 ```{r}
 ind.lambda <- BoxCox.lambda(ind.ts)
 ind.bc <- BoxCox(ind.ts, ind.lambda)
 ind.bc.1.1 <- diff(diff(ind.bc, lag = 1), lag = 1)
 ind.bc.1.1.12 <- diff(ind.bc.1.1, lag = 12)
-tsdisplay(ind.bc.1.1.12)
+tsdisplay(ind.bc.1.1.12, lag.max = 100)
+```
+
+Jak widać po zróżnicowaniu reszty przypominają już szereg stacjonarny. Zostanie to jeszcze potwierdzone testem.
+
+```{r}
+shapiro.test(ind.bc.1.1.12)
+```
+
+Szereg reszt nie jest realizacją szumu białego.
+
+```{r}
+ind.bc.1.1.12 %>% ur.kpss(use.lag = 12) %>% summary()
+```
+
+Test wskazuje na to, że nie ma podstaw do odrzucenia hipotezy o tym, że szereg jest stacjonarny.
+
+## Wyznaczenie rzędu MA
+
+```{r}
+ind.st <- ind.bc.1.1.12 # Szereg stacjonarny
+Acf(ind.st, lag.max = 50)
+```
+
+Do rozważenia mamy następujące modele MA:
+
+```{r}
+ind.st.acf <- Acf(ind.st, plot = FALSE, lag.max = 100)
+ind.st.acf$lag[which(abs(ind.st.acf$acf)>1.96/sqrt(ind.st.acf$n.used))] # Wszystkie lag poza przedziałem
+```
+
+Wyznaczę modele MA(12), MA(9) oraz MA(3):
+
+```{r}
+ind.st.ma12 <- Arima(st, order = c(0,0,12))
+ind.st.ma9 <- Arima(st, order = c(0,0,9))
+ind.st.ma3 <- Arima(st, order = c(0,0,3))
+```
+
+Część współczynników oraz metryki modeli:
+
+```{r}
+c(ind.st.ma12$aic, ind.st.ma12$aicc, ind.st.ma12$bic)
+ind.st.ma12$coef[1:5]
+```
+
+```{r}
+c(ind.st.ma9$aic, ind.st.ma9$aicc, ind.st.ma9$bic)
+ind.st.ma9$coef[1:5]
+```
+
+```{r}
+c(ind.st.ma3$aic, ind.st.ma3$aicc, ind.st.ma3$bic)
+ind.st.ma3$coef
+```
+
+Współczynniki MA(12) i MA(9) są podobne. Wszystkie modele mają podobne wartości AIC, AICc oraz BIC.
+
+## Wyznaczenie rzędu AR
+
+Rzędy modelu AR można odczytać z wykresu Pacf.
+
+```{r}
+Pacf(ind.st, lag.max = 50)
+```
+
+Skorzystam z pomocniczej funkcji.
+
+```{r}
+ind.st.pacf <- Pacf(ind.st, plot =  FALSE, lag.max = 100)
+ind.st.pacf$lag[which(abs(ind.st.pacf$acf)>1.96/sqrt(ind.st.pacf$n.used))] # Wszystkie lag poza przedziałem
+```
+
+Obliczę współczynniki dla AR(3), AR(15), AR(9) i AR(5).
+
+```{r}
+ind.st.ar3 <- Arima(st, order = c(3,0,0))
+ind.st.ar15 <- Arima(st, order = c(15,0,0))
+ind.st.ar9 <- Arima(st, order = c(9,0,0))
+ind.st.ar5 <- Arima(st, order = c(5,0,0))
+```
+
+Część współczynników oraz metryki modeli:
+
+```{r}
+c(ind.st.ar3$aic, ind.st.ar3$aicc, ind.st.ar3$bic)
+ind.st.ar3$coef[1:3]
+```
+
+```{r}
+c(ind.st.ar15$aic, ind.st.ar15$aicc, ind.st.ar15$bic)
+ind.st.ar15$coef[1:5]
+```
+
+```{r}
+c(ind.st.ar9$aic, ind.st.ar9$aicc, ind.st.ar9$bic)
+ind.st.ar9$coef[1:5]
+```
+
+```{r}
+c(ind.st.ar5$aic, ind.st.ar5$aicc, ind.st.ar5$bic)
+ind.st.ar5$coef[1:5]
+```
+
+Współczynniki wszystkich modeli oraz ich metryki są podobne.
+
+## auto.arima
+
+```{r}
+ind.auto <- auto.arima(ind.st, max.p = 20, max.q = 20, max.P = 5, max.Q = 5, ic="aicc")
+summary(ind.auto)
+```
+
+## Porównanie analizowanych modeli
+
+Zebrałem parametry AIC, AICc oraz BIC dla tego szeregu w tabeli poniżej. Wybrany zostanie model, który ma te współczynniki najmniejsze.
+
+```
+# ARIMA(0 ,0,12)                AIC=-390.4213   AICc=-389.8514   BIC=-325.7030} 
+# ARIMA(0 ,0, 9)            AIC=-396.3046   AICc=-395.9478   BIC=-345.4545 
+# ARIMA(0 ,0, 3)            AIC=-397.3129   AICc=-397.2324   BIC=-374.1992 
+# ARIMA(3 ,0, 0)            AIC=-338.0322   AICc=-337.9517   BIC=-314.9185
+# ARIMA(15,0, 0)            AIC=-375.9754   AICc=-375.1416   BIC=-297.3889 
+# ARIMA(9 ,0, 0)            AIC=-373.2033   AICc=-372.8466   BIC=-322.3532 
+# ARIMA(5 ,0, 0)            AIC=-356.1699   AICc=-356.0194   BIC=-323.8107 
+# ARIMA(1 ,0, 3)(0,0,2)[12] AIC=-6942.82  + AICc=-6942.53  + BIC=-6914.93  +
+```
+
+Najlepszym wydaje się model dobrany automatycznie ARIMA(1 ,0, 3)(0,0,2)[12]. Poprawność modelu, sprawdzę z pomocą funkcji `checkresiduals` .
+
+
+```{r}
+checkresiduals(ind.auto)
 ```
