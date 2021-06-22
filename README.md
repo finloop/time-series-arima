@@ -1,6 +1,5 @@
-# Abstrakt
+------------------------------------------------------------------------
 
-Celem pracy jest analiza dwóch szeregów czasowych z wykorzystaniem języka R. Pierwszego zawierającego silną sezonowość, drugiego silny trend. Szeregi poddane dekompozycji, usunięciu trendu i sezonowości. Zbadana i potwierdzona została stacjonarność reszt obu szeregów, a ostatecznie zostały modelowane modelem ARIMA. Przewidywania dotyczące dalszego ich przebiegu zostały stworzone z pomocą metod naiwnych uwzględniających dryf, a także sezonowość. Analiza reszt obu szeregów potwierdziła, że stanowią one realizację szumu białego.
 # Szereg - Rozwój biznesu
 
 Na szereg ten składają się dane po chodzące ze strony
@@ -368,9 +367,9 @@ porównywać między sobą.
     # ARIMA(1,0,0)              AIC=-181.41   AICc=-181.38   BIC=-167.54
     # ARIMA(1,0,0)(1,0,0)[52]   AIC=-343.58   AICc=-343.54   BIC=-329.71  +
 
-Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0). Pomimo dużej
-ilości, parametrów jako jedyny przechodzi test Ljung-Boxa (dla
-*α* = 0.05). Analiza reszt znajduje się na wykresach poniżej.
+Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0), ale żaden z
+wybranych modeli nie przechodzi testu. Analiza reszt znajduje się na
+wykresach poniżej.
 
 ``` r
 checkresiduals(st.ar56)
@@ -742,7 +741,7 @@ checkresiduals(ind.auto)
     ## 
     ## Model df: 0.   Total lags used: 22
 
-Reszty przechodzą test.
+Reszty nie przechodzą testu.
 
 ## Prognozowanie
 

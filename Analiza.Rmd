@@ -1,22 +1,26 @@
 ---
-title: "Modelowanie szeregów czsowych z wykorzystaniem modeli ARIMA"
+title: "Modelowanie szeregów czasowych z wykorzystaniem modeli ARIMA"
 author: "Krawiec Piotr"
 date: "18/06/2021"
 output: 
+  md_document:
+    variant: markdown_github
   pdf_document:
     number_sections: true
     keep_tex: yes
-  md_document:
-    variant: markdown_github
 csl: cit.csl
 lang: pl
 abstract: |
-  Celem pracy jest analiza dwóch szeregów czasowych z wykorzystaniem języka R. Pierwszego zawierającego silną sezonowość, drugiego silny trend. Szeregi poddane dekompozycji, usunięciu trendu i sezonowości. Zbadana i potwierdzona została stacjonarność reszt obu szeregów, a ostatecznie zostały modelowane modelem ARIMA. Przewidywania dotyczące dalszego ich przebiegu zostały stworzone z pomocą metod naiwnych uwzględniających dryf, a także sezonowość. Analiza reszt obu szeregów potwierdziła, że stanowią one realizację szumu białego.
+  Celem pracy jest analiza dwóch szeregów czasowych z wykorzystaniem języka R. Pierwszego zawierającego silną sezonowość, drugiego silny trend. Szeregi poddane dekompozycji, usunięciu trendu i sezonowości. Zbadana i potwierdzona została stacjonarność reszt obu szeregów, a ostatecznie zostały modelowane modelem ARIMA. Przewidywania dotyczące dalszego ich przebiegu zostały stworzone z pomocą metod naiwnych uwzględniających dryf, a także sezonowość. Reszty żadnego z zaprezentowanych modeli nie przechodzą testów.
 ---
+
+```{=tex}
 \newpage
 \tableofcontents
 \newpage
----
+```
+
+------------------------------------------------------------------------
 
 ```{r setup, include=FALSE, warning=FALSE}
 library(knitr)
@@ -262,7 +266,7 @@ Wszystkie modele korzystały z transformacji Boxa-Coxa więc mogę je porównywa
     # ARIMA(1,0,0)              AIC=-181.41   AICc=-181.38   BIC=-167.54
     # ARIMA(1,0,0)(1,0,0)[52]   AIC=-343.58   AICc=-343.54   BIC=-329.71  +
 
-Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0). Pomimo dużej ilości, parametrów jako jedyny przechodzi test Ljung-Boxa (dla $\alpha = 0.05$). Analiza reszt znajduje się na wykresach poniżej.
+Ze wszystkich modeli, najlepszym wydaje się ARIMA(56,0,0), ale żaden z wybranych modeli nie przechodzi testu. Analiza reszt znajduje się na wykresach poniżej.
 
 ```{r}
 checkresiduals(st.ar56)
@@ -479,7 +483,7 @@ Najlepszym wydaje się model dobrany automatycznie ARIMA(0,0,0). Poprawność mo
 checkresiduals(ind.auto)
 ```
 
-Reszty przechodzą test.
+Reszty nie przechodzą testu.
 
 ## Prognozowanie
 
